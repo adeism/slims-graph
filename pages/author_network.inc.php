@@ -31,26 +31,37 @@ if ($sysconf['baseurl'] != '') {
 do_checkIP('opac');
 do_checkIP('opac-member');
 
-// Ambil nilai limit dari form, default 100
+// Ambil nilai limit dari form, default 100, dan tambahkan validasi.
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
+if ($limit <= 0 || $limit > 1000) {  // Batasi limit, misalnya antara 1 dan 1000.
+    $limit = 100; // Jika di luar batas, kembalikan ke default.
+}
 
-$query = "SELECT 
-            bt.biblio_id,
-            b.title, b.publish_year, 
-            t.topic,
-            a.author_name
-          FROM 
-            biblio_topic bt
-          JOIN 
-            biblio b ON bt.biblio_id = b.biblio_id
-          JOIN 
-            biblio_author ba ON b.biblio_id = ba.biblio_id
-          JOIN 
-            mst_author a ON ba.author_id = a.author_id
-          JOIN 
-            mst_topic t ON bt.topic_id = t.topic_id LIMIT $limit";
+$db = SLiMS\DB::getInstance(); // Pastikan ini sudah ada di file Anda.
 
-$result = $db->query($query);
+$query = $db->prepare("
+    SELECT 
+        bt.biblio_id,
+        b.title, b.publish_year, 
+        t.topic,
+        a.author_name
+    FROM 
+        biblio_topic bt
+    JOIN 
+        biblio b ON bt.biblio_id = b.biblio_id
+    JOIN 
+        biblio_author ba ON b.biblio_id = ba.biblio_id
+    JOIN 
+        mst_author a ON ba.author_id = a.author_id
+    JOIN 
+        mst_topic t ON bt.topic_id = t.topic_id
+    LIMIT :limit  -- Gunakan placeholder, bukan variabel langsung.
+");
+
+$query->bindValue(':limit', $limit, PDO::PARAM_INT); // Ikat placeholder dengan nilai dan tipe data.
+$query->execute(); // Eksekusi prepared statement.
+
+$result = $query; // $result sekarang berisi hasil dari prepared statement.
 
 $nodes = [];
 $links = [];
